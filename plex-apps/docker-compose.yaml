@@ -115,27 +115,26 @@ services:
     labels:
       - watchdog-reboot
 
-
-  cleanuparr:
-    container_name: plex-cleanuparr
-    image: ghcr.io/cleanuparr/cleanuparr:latest
-    restart: ${GLOBAL_RESTART_STRATEGY}
-
-    network_mode: container:core-nord-vpn-meshnet
-
-    volumes:
-      - ${GLOBAL_LOCALTIME}
-      - ${INFRA_CONFIG_ROOT}/cleanuparr:/config
-      - ${STREAM}:/data
-
-    environment:
-      - TZ=${GLOBAL_TIMEZONE}
-      - PUID=${GLOBAL_PUID}
-      - PGID=${GLOBAL_PGID}
-      - PORT=11011
-
-    labels:
-      - watchdog-reboot
+#  cleanuparr:
+#    container_name: plex-cleanuparr
+#    image: ghcr.io/cleanuparr/cleanuparr:latest
+#    restart: ${GLOBAL_RESTART_STRATEGY}
+#
+#    network_mode: container:core-nord-vpn-meshnet
+#
+#    volumes:
+#      - ${GLOBAL_LOCALTIME}
+#      - ${INFRA_CONFIG_ROOT}/cleanuparr:/config
+#      - ${STREAM}:/data
+#
+#    environment:
+#      - TZ=${GLOBAL_TIMEZONE}
+#      - PUID=${GLOBAL_PUID}
+#      - PGID=${GLOBAL_PGID}
+#      - PORT=11011
+#
+#    labels:
+#      - watchdog-reboot
 
   flaresolverr:
     container_name: plex-flaresolverr
