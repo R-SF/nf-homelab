@@ -20,3 +20,7 @@ Thumbs.db
 desktop.ini
 *.tar.gz
 *.bak
+
+misc/
+SETUP.md
+SORT.md
