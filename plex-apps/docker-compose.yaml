@@ -1,0 +1,244 @@
+services:
+  apache:
+    container_name: plex-homepage
+    image: httpd:latest
+    restart: ${GLOBAL_RESTART_STRATEGY}
+
+    network_mode: container:core-nord-vpn-meshnet
+
+    volumes:
+      - ${GLOBAL_LOCALTIME}
+      - ${INFRA_CONFIG_ROOT}/apache/website:/usr/local/apache2/htdocs
+
+    environment:
+      - TZ=${GLOBAL_TIMEZONE}
+
+    labels:
+      - watchdog-reboot
+
+  radarr:
+    container_name: plex-radarr
+    image: lscr.io/linuxserver/radarr:latest
+    restart: ${GLOBAL_RESTART_STRATEGY}
+
+    network_mode: container:core-nord-vpn-meshnet
+
+    volumes:
+      - ${GLOBAL_LOCALTIME}
+      - ${INFRA_CONFIG_ROOT}/radarr:/config
+      - ${STREAM}:/data
+
+    environment:
+      - TZ=${GLOBAL_TIMEZONE}
+      - PUID=${GLOBAL_PUID}
+      - PGID=${GLOBAL_PGID}
+
+    labels:
+      - watchdog-reboot
+
+  sonarr:
+    container_name: plex-sonarr
+    image: lscr.io/linuxserver/sonarr:latest
+    restart: ${GLOBAL_RESTART_STRATEGY}
+
+    network_mode: container:core-nord-vpn-meshnet
+
+    volumes:
+      - ${GLOBAL_LOCALTIME}
+      - ${INFRA_CONFIG_ROOT}/sonarr:/config
+      - ${STREAM}:/data
+
+    environment:
+      - TZ=${GLOBAL_TIMEZONE}
+      - PUID=${GLOBAL_PUID}
+      - PGID=${GLOBAL_PGID}
+
+    labels:
+      - watchdog-reboot
+
+  prowlarr:
+    container_name: plex-prowlarr
+    image: lscr.io/linuxserver/prowlarr:latest
+    restart: ${GLOBAL_RESTART_STRATEGY}
+
+    network_mode: container:core-nord-vpn-meshnet
+
+    volumes:
+      - ${GLOBAL_LOCALTIME}
+      - ${INFRA_CONFIG_ROOT}/prowlarr:/config
+
+    environment:
+      - TZ=${GLOBAL_TIMEZONE}
+      - PUID=${GLOBAL_PUID}
+      - PGID=${GLOBAL_PGID}
+
+    labels:
+      - watchdog-reboot
+
+  tdarr:
+    container_name: plex-tdarr
+    image: ghcr.io/haveagitgat/tdarr:latest
+    restart: ${GLOBAL_RESTART_STRATEGY}
+
+    devices:
+      - ${GLOBAL_DRI}
+
+    network_mode: container:core-nord-vpn-meshnet
+
+    volumes:
+      - ${INFRA_CONFIG_ROOT}/tdarr/server:/app/server
+      - ${INFRA_CONFIG_ROOT}/tdarr/configs:/app/configs
+      - ${INFRA_CONFIG_ROOT}/tdarr/logs:/app/logs
+      - ${STREAM_MEDIA}:/media
+      - ${CACHE}/tdarr:/temp
+
+    labels:
+      - watchdog-reboot
+
+  recyclarr:
+    container_name: plex-recyclarr
+    image: ghcr.io/recyclarr/recyclarr:8
+    restart: ${GLOBAL_RESTART_STRATEGY}
+
+    user: "${GLOBAL_PUID}:${GLOBAL_PGID}"
+
+    network_mode: container:core-nord-vpn-meshnet
+
+    volumes:
+      - ${GLOBAL_LOCALTIME}
+      - ${INFRA_CONFIG_ROOT}/recyclarr:/config
+
+    environment:
+      - TZ=${GLOBAL_TIMEZONE}
+      - CRON_SCHEDULE=@daily
+
+    labels:
+      - watchdog-reboot
+
+
+  cleanuparr:
+    container_name: plex-cleanuparr
+    image: ghcr.io/cleanuparr/cleanuparr:latest
+    restart: ${GLOBAL_RESTART_STRATEGY}
+
+    network_mode: container:core-nord-vpn-meshnet
+
+    volumes:
+      - ${GLOBAL_LOCALTIME}
+      - ${INFRA_CONFIG_ROOT}/cleanuparr:/config
+      - ${STREAM}:/data
+
+    environment:
+      - TZ=${GLOBAL_TIMEZONE}
+      - PUID=${GLOBAL_PUID}
+      - PGID=${GLOBAL_PGID}
+      - PORT=11011
+
+    labels:
+      - watchdog-reboot
+
+  flaresolverr:
+    container_name: plex-flaresolverr
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    restart: ${GLOBAL_RESTART_STRATEGY}
+
+    network_mode: container:core-nord-vpn-meshnet
+
+    volumes:
+      - ${GLOBAL_LOCALTIME}
+      - ${INFRA_CONFIG_ROOT}/flaresolverr:/config
+
+    environment:
+      - TZ=${GLOBAL_TIMEZONE}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_HTML=${LOG_HTML:-false}
+      - CAPTCHA_SOLVER=${CAPTCHA_SOLVER:-none}
+
+    labels:
+      - watchdog-reboot
+
+  seerr:
+    container_name: plex-seerr
+    image: ghcr.io/seerr-team/seerr:latest
+    init: true
+    restart: ${GLOBAL_RESTART_STRATEGY}
+
+    network_mode: container:core-nord-vpn-meshnet
+
+    volumes:
+      - ${GLOBAL_LOCALTIME}
+      - ${INFRA_CONFIG_ROOT}/seerr:/app/config
+      - ${STREAM}:/data
+
+    environment:
+      - TZ=${GLOBAL_TIMEZONE}
+      - PUID=${GLOBAL_PUID}
+      - PGID=${GLOBAL_PGID}
+      - PORT=5050
+      - LOG_LEVEL=debug
+
+    labels:
+      - watchdog-reboot
+
+  tautulli:
+    container_name: plex-tautulli
+    image: lscr.io/linuxserver/tautulli:latest
+    restart: ${GLOBAL_RESTART_STRATEGY}
+
+    network_mode: container:core-nord-vpn-meshnet
+
+    volumes:
+      - ${GLOBAL_LOCALTIME}
+      - ${INFRA_CONFIG_ROOT}/tautulli:/config
+
+    environment:
+      - TZ=${GLOBAL_TIMEZONE}
+      - PUID=${GLOBAL_PUID}
+      - PGID=${GLOBAL_PGID}
+
+    labels:
+      - watchdog-reboot
+
+  nzbget:
+    container_name: plex-nzbget
+    image: lscr.io/linuxserver/nzbget:latest
+    restart: ${GLOBAL_RESTART_STRATEGY}
+
+    network_mode: container:core-nord-vpn-meshnet
+
+    volumes:
+      - ${GLOBAL_LOCALTIME}
+      - ${INFRA_CONFIG_ROOT}/nzbget:/config
+      - ${CACHE}/nzbget/buffer:/buffer
+      - ${STREAM}:/data
+
+    environment:
+      - TZ=${GLOBAL_TIMEZONE}
+      - PUID=${GLOBAL_PUID}
+      - PGID=${GLOBAL_PGID}
+      - NZBGET_USER=${NZBGET_USERNAME}
+      - NZBGET_PASS=${NZBGET_PASSWORD}
+
+    labels:
+      - watchdog-reboot
+
+  qbittorrent:
+    container_name: plex-qbittorrent
+    image: lscr.io/linuxserver/qbittorrent:latest
+    restart: ${GLOBAL_RESTART_STRATEGY}
+
+    network_mode: container:core-nord-vpn-meshnet
+
+    volumes:
+      - ${GLOBAL_LOCALTIME}
+      - ${INFRA_CONFIG_ROOT}/qbittorrent:/config
+      - ${STREAM}:/data
+
+    environment:
+      - TZ=${GLOBAL_TIMEZONE}
+      - PUID=${GLOBAL_PUID}
+      - PGID=${GLOBAL_PGID}
+      - WEBUI_PORT=8070
+
+    labels:
+      - watchdog-reboot
