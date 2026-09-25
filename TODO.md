@@ -1,5 +1,4 @@
 # Todo
-- [ ] Change `ntfy.sh` topic for OOM drive monitor.
 - [ ] Tdarr setup
   - [ ] Convert all torrents before running anything. 
   - [ ] DoVi converter.
@@ -17,7 +16,12 @@
 - [ ] Change HDD file format to ext4.
 - [ ] Change source for TV shows in plex.
 
-# Watchdog ntfy implementation.
+# Done
+- [x] Change `ntfy.sh` topic for OOM drive monitor.
+- [x] Add `.env.example` files for each docker stack.
+
+# Appendix
+## Watchdog ntfy implementation.
 ```
 nord-vpn-watchdog:
     container_name: core-nord-vpn-watchdog
