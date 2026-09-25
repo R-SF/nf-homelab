@@ -28,11 +28,15 @@ services:
 
     environment:
       - TZ=${GLOBAL_TIMEZONE}
+      - NTFY_URL=${NTFY_URL}
+      - NTFY_TOPIC=${NTFY_TOPIC}
 
     entrypoint: >
       sh -c '
+        START_TIME=$$(date +%s);
+        apk add --no-cache curl >/dev/null 2>&1;
         FIRST=1;
-        docker events --filter "container=core-nord-vpn-meshnet" --filter "event=start" |
+        docker events --since $$START_TIME --filter "container=core-nord-vpn-meshnet" --filter "event=start" |
         while read line; do
           if [ "$$FIRST" = "1" ]; then
             FIRST=0;
@@ -40,11 +44,15 @@ services:
             continue;
           fi;
           echo "[$$(date "+%Y-%m-%d %H:%M:%S")] VPN restarted, restarting dependent containers...";
+          curl -fsS -d "VPN meshnet restarted, restarting dependent containers" "$${NTFY_URL}/$${NTFY_TOPIC}" >/dev/null 2>&1;
+          RESTARTED="";
           for c in $$(docker ps -q --filter "label=watchdog-reboot"); do
             name=$$(docker inspect --format "{{.Name}}" "$$c" | sed "s#^/##");
             echo "[$$(date "+%Y-%m-%d %H:%M:%S")] >> Restarting $$name";
             docker restart "$$c";
-          done
+            RESTARTED="$$RESTARTED $$name";
+          done;
+          curl -fsS -d "Finished restarting:$$RESTARTED" "$${NTFY_URL}/$${NTFY_TOPIC}" >/dev/null 2>&1;
         done'
 
   nord-vpn-meshnet:
@@ -116,6 +124,9 @@ services:
     environment:
       - TZ=${GLOBAL_TIMEZONE}
       - UMASK=0022
+
+    labels:
+      - watchdog-reboot
 
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:3001" ]
