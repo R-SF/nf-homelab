@@ -1,0 +1,22 @@
+services:
+  vaultwarden:
+    container_name: vaultwarden-server
+    image: vaultwarden/server:latest
+    restart: ${GLOBAL_RESTART_STRATEGY}
+
+    network_mode: container:core-nord-vpn-meshnet
+
+    volumes:
+      - ${GLOBAL_LOCALTIME}
+      - ${INFRA_CONFIG_ROOT}/vaultwarden:/data
+
+    environment:
+      - TZ=${GLOBAL_TIMEZONE}
+      - DOMAIN=${VAULTWARDEN_DOMAIN}
+      - ROCKET_PORT=8222
+      - SIGNUPS_ALLOWED=false
+      - WEBSOCKET_ENABLED=true
+      - ADMIN_TOKEN=${VAULTWARDEN_ADMIN_TOKEN}
+
+    labels:
+      - watchdog-reboot

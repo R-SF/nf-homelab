@@ -1,0 +1,25 @@
+services:
+  plex:
+    container_name: plex-server
+    image: lscr.io/linuxserver/plex:latest
+    restart: ${GLOBAL_RESTART_STRATEGY}
+
+    devices:
+      - ${GLOBAL_DRI}
+
+    network_mode: host
+
+    volumes:
+      - ${GLOBAL_LOCALTIME}
+      - ${INFRA_CONFIG_ROOT}/plex:/config
+      - ${STREAM}/app-data/plex/Media:/config/Library/Application Support/Plex Media Server/Media
+      - ${STREAM_MEDIA}/tv:/tv
+      - ${STREAM_MEDIA}/movies:/movies
+      - ${STREAM_MEDIA}/music:/music
+
+    environment:
+      - TZ=${GLOBAL_TIMEZONE}
+      - PUID=${GLOBAL_PUID}
+      - PGID=${GLOBAL_PGID}
+      - VERSION=docker
+      - PLEX_CLAIM=${PLEX_CLAIM_CODE}

@@ -1,0 +1,214 @@
+services:
+  watchtower:
+    container_name: core-watchtower
+    image: nickfedor/watchtower:latest
+    restart: ${GLOBAL_RESTART_STRATEGY}
+
+    volumes:
+      - ${GLOBAL_LOCALTIME}
+      - ${GLOBAL_DOCKER_SOCK}
+
+    environment:
+      - TZ=${GLOBAL_TIMEZONE}
+      - WATCHTOWER_CLEANUP=true           # removes old images after updating (replaces your "prune" step)
+      - WATCHTOWER_SCHEDULE=0 0 4 * * *   # cron: run once a day at 4am
+      - WATCHTOWER_ROLLING_RESTART=false  # Can't be enabled while WATCHTOWER_MONITOR_ONLY is enabled. Doesn't work with depends_on.
+      # - WATCHTOWER_MONITOR_ONLY=true
+
+  # Required for when the meshnet service fails. Although the image auto-restarts, it does not restart any other container that
+  # uses the container:core-nord-vpn-meshnet network namespace. Without this we lose access and have to SSH and manually restart the containers.
+  nord-vpn-watchdog:
+    container_name: core-nord-vpn-watchdog
+    image: docker:cli
+    restart: ${GLOBAL_RESTART_STRATEGY}
+
+    volumes:
+      - ${GLOBAL_LOCALTIME}
+      - ${GLOBAL_DOCKER_SOCK}
+
+    environment:
+      - TZ=${GLOBAL_TIMEZONE}
+
+    entrypoint: >
+      sh -c '
+        FIRST=1;
+        docker events --filter "container=core-nord-vpn-meshnet" --filter "event=start" |
+        while read line; do
+          if [ "$$FIRST" = "1" ]; then
+            FIRST=0;
+            echo "$$(date "+%Y-%m-%d %H:%M:%S") - Skipping initial start event";
+            continue;
+          fi;
+          echo "[$$(date "+%Y-%m-%d %H:%M:%S")] VPN restarted, restarting dependent containers...";
+          for c in $$(docker ps -q --filter "label=watchdog-reboot"); do
+            name=$$(docker inspect --format "{{.Name}}" "$$c" | sed "s#^/##");
+            echo "[$$(date "+%Y-%m-%d %H:%M:%S")] >> Restarting $$name";
+            docker restart "$$c";
+          done
+        done'
+
+  nord-vpn-meshnet:
+    container_name: core-nord-vpn-meshnet
+    image: ghcr.io/nmbradley/nordvpn-meshnet:latest
+    restart: ${GLOBAL_RESTART_STRATEGY}
+    depends_on:
+      - nord-vpn-watchdog
+
+    hostname: meshnet
+    ports:
+      - ${PM_PORTAINER_MAIN}
+      - ${PM_PORTAINER_WEBUI}
+      - ${PM_DOZZLE}
+      - ${PM_APACHE}
+      - ${PM_RADARR}
+      - ${PM_SONARR}
+      - ${PM_PROWLARR}
+      - ${PM_TDARR_WEBUI}
+      - ${PM_TDARR_SERVER}
+      - ${PM_CLEANUPARR}
+      - ${PM_FLARESOLVER}
+      - ${PM_SEERR}
+      - ${PM_TAUTULLI}
+      - ${PM_NZBGET}
+      - ${PM_QBITTORRENT_WEBUI}
+      - ${PM_QBITTORRENT_PRIVOXY}
+      - ${PM_QBITTORRENT_TCP}
+      - ${PM_QBITTORRENT_UDP}
+      - ${PM_CADDY_HTTPS}
+      - ${PM_UPTIME_KUMA}
+
+    dns:
+      - 1.1.1.1
+      - 1.0.0.1
+      - 8.8.8.8
+      - 8.8.4.4
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+
+    volumes:
+      - ${GLOBAL_LOCALTIME}
+      - ${INFRA_CONFIG_ROOT}/nord-vpn:/var/lib/nordvpn
+
+    environment:
+      - TZ=${GLOBAL_TIMEZONE}
+
+    env_file: .env
+
+    # Just an example of how to exclude a container from watchtower.
+    # labels:
+    #   - com.centurylinklabs.watchtower.enable=false
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:latest
+    container_name: core-uptime-kuma
+    depends_on:
+      - nord-vpn-meshnet
+    restart: ${GLOBAL_RESTART_STRATEGY}
+
+    network_mode: container:core-nord-vpn-meshnet
+
+    volumes:
+      - ${GLOBAL_LOCALTIME}
+      - ${GLOBAL_DOCKER_SOCK}
+      - ${INFRA_CONFIG_ROOT}/uptime-kuma:/app/data
+
+    environment:
+      - TZ=${GLOBAL_TIMEZONE}
+      - UMASK=0022
+
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:3001" ]
+      interval: 30s
+      retries: 3
+      start_period: 10s
+      timeout: 5s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  cloudflared:
+    container_name: core-cloudflared
+    image: cloudflare/cloudflared:latest
+    depends_on:
+      - nord-vpn-meshnet
+    restart: ${GLOBAL_RESTART_STRATEGY}
+
+    network_mode: container:core-nord-vpn-meshnet
+
+    command: tunnel run
+
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+
+    labels:
+      - watchdog-reboot
+
+  caddy:
+    container_name: core-caddy
+    build:
+      context: ${INFRA_CONFIG_ROOT}/caddy
+      dockerfile: Dockerfile
+    depends_on:
+      - nord-vpn-meshnet
+    restart: ${GLOBAL_RESTART_STRATEGY}
+
+    network_mode: container:core-nord-vpn-meshnet
+
+    volumes:
+      - ${GLOBAL_LOCALTIME}
+      - ${INFRA_CONFIG_ROOT}/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ${INFRA_CONFIG_ROOT}/caddy/data:/data
+      - ${INFRA_CONFIG_ROOT}/caddy/config:/config
+
+    environment:
+      - TZ=${GLOBAL_TIMEZONE}
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+
+    labels:
+      - watchdog-reboot
+
+  portainer:
+    container_name: core-portainer
+    image: portainer/portainer-ce:lts
+    depends_on:
+      - nord-vpn-meshnet
+    restart: ${GLOBAL_RESTART_STRATEGY}
+
+    network_mode: container:core-nord-vpn-meshnet
+
+    volumes:
+      - ${GLOBAL_LOCALTIME}
+      - ${GLOBAL_DOCKER_SOCK}
+      - ${INFRA_CONFIG_ROOT}/portainer:/data
+
+    environment:
+      - TZ=${GLOBAL_TIMEZONE}
+
+    labels:
+      - watchdog-reboot
+
+  dozzle:
+    container_name: core-dozzle
+    image: amir20/dozzle:latest
+    depends_on:
+      - nord-vpn-meshnet
+    restart: ${GLOBAL_RESTART_STRATEGY}
+
+    network_mode: container:core-nord-vpn-meshnet
+
+    volumes:
+      - ${GLOBAL_LOCALTIME}
+      - ${GLOBAL_DOCKER_SOCK}
+      - ${INFRA_CONFIG_ROOT}/dozzle:/data
+
+    environment:
+      - TZ=${GLOBAL_TIMEZONE}
+      - DOZZLE_ENABLE_ACTIONS=true
+      - DOZZLE_ENABLE_SHELL=true
+
+    labels:
+      - watchdog-reboot
