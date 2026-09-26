@@ -30,6 +30,7 @@ services:
       - TZ=${GLOBAL_TIMEZONE}
       - NTFY_URL=${NTFY_URL}
       - NTFY_TOPIC=${NTFY_TOPIC}
+      - NTFY_WATCHDOG_AUTH_TOKEN=${NTFY_WATCHDOG_AUTH_TOKEN}
 
     entrypoint: >
       sh -c '
@@ -44,7 +45,7 @@ services:
             continue;
           fi;
           echo "[$$(date "+%Y-%m-%d %H:%M:%S")] VPN restarted, restarting dependent containers...";
-          curl -fsS -d "VPN meshnet restarted, restarting dependent containers" "$${NTFY_URL}/$${NTFY_TOPIC}" >/dev/null 2>&1;
+          curl -fsS -u ":$${NTFY_WATCHDOG_AUTH_TOKEN}" -d "VPN meshnet restarted, restarting dependent containers" "$${NTFY_URL}/$${NTFY_TOPIC}" >/dev/null 2>&1;
           RESTARTED="";
           for c in $$(docker ps -q --filter "label=watchdog-reboot"); do
             name=$$(docker inspect --format "{{.Name}}" "$$c" | sed "s#^/##");
@@ -52,7 +53,7 @@ services:
             docker restart "$$c";
             RESTARTED="$$RESTARTED $$name";
           done;
-          curl -fsS -d "Finished restarting:$$RESTARTED" "$${NTFY_URL}/$${NTFY_TOPIC}" >/dev/null 2>&1;
+          curl -fsS -u ":$${NTFY_WATCHDOG_AUTH_TOKEN}" -d "Finished restarting:$$RESTARTED" "$${NTFY_URL}/$${NTFY_TOPIC}" >/dev/null 2>&1;
         done'
 
   nord-vpn-meshnet:
